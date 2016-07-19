@@ -5,7 +5,7 @@
 ;; Author: Paul Rankin <hello@paulwrankin.com>
 ;; Keywords: wp
 ;; Version: 2.2.0
-;; Package-Requires: ((emacs "24.4.0") (s "1.9.0"))
+;; Package-Requires: ((emacs "24.4"))
 ;; URL: https://github.com/rnkn/fountain-mode
 
 ;; This file is not part of GNU Emacs.
@@ -70,11 +70,8 @@
 ;; ------------
 
 ;; - Emacs 24.4
-;; - [s.el][], the long lost Emacs string manipulation library.
 ;; - LaTeX packages for PDF export: `geometry` `fontspec` `titling` `fancyhdr`
 ;;   `marginnote` `ulem` `xstring` `oberdiek`
-
-;; [s.el]: https://github.com/magnars/s.el "s.el"
 
 ;; Installation
 ;; ------------
@@ -129,7 +126,6 @@
 
 ;;; Requirements
 
-(require 's)
 (require 'easymenu)
 (require 'outline)
 
@@ -441,12 +437,20 @@ if you prefer the latter, set this option to non-nil."
 (defcustom fountain-note-template
   "${time} - ${fullname}: "
   "\\<fountain-mode-map>Template for inserting notes with \\[fountain-insert-note].
-See `fountain-insert-template'.
 
-The default \"${time} - ${fullname}: \" will insert something
+To include an item in a template you must use the full `${key}'
+syntax.
+
+    ${title}    Buffer name without extension
+    ${time}     Short date format (defined in `fountain-time-format')
+    ${fullname} User full name (defined in `user-full-name')
+    ${nick}     User first name (defined in `user-login-name')
+    ${email}    User email (defined in `user-mail-address')
+
+The default `${time} - ${fullname}: ' will insert something
 similar to:
 
-\[\[01/20/14 - Alan Smithee: \]\]"
+\[\[2014-20-01 - Alan Smithee: \]\]"
   :type 'string
   :group 'fountain)
 
@@ -601,7 +605,7 @@ Note that comments (boneyard) are never included."
   t
   "If non-nil, export a standalone document.
 Otherwise export a snippet."
-  :type 'string
+  :type 'boolean
   :group 'fountain-export)
 
 (defcustom fountain-export-buffer-name
@@ -630,8 +634,8 @@ Passed to `format' with export format as single variable."
 (defcustom fountain-export-page-size
   'letter
   "Paper size to use on export."
-  :type '(radio (const :tag "US Letter" 'letter)
-                (const :tag "A4" 'a4))
+  :type '(radio (const :tag "US Letter" letter)
+                (const :tag "A4" a4))
   :group 'fountain-export)
 
 (defcustom fountain-export-font
@@ -1615,7 +1619,7 @@ bold-italic delimiters together, e.g.
          (list "Scene Headings" fountain-scene-heading-regexp 1)
          (list "Sections" fountain-section-heading-regexp 1))))
 
-(defun fountain-init-regexp ()
+(defun fountain-init-regexp ()          ; FIXME not in use
   "Set variable regular expression values."
   (fountain-init-scene-heading-regexp)
   (fountain-init-outline-regexp)
@@ -1858,37 +1862,6 @@ Value string remains a string."
         (skip-chars-forward "\n\s\t")
         (setq list (append list (list 'content-start (point))))))
     list))
-
-(defun fountain-insert-template (template)
-  "Format TEMPLATE according to the following list.
-To include an item in a template you must use the full \"${foo}\"
-syntax.
-
-    ${title}    Buffer name without extension
-    ${time}     Short date format (defined in `fountain-time-format')
-    ${fullname} User full name (defined in `user-full-name')
-    ${nick}     User first name (defined in `user-login-name')
-    ${email}    User email (defined in `user-mail-address')
-
-Optionally, use \"$@\" to set the `mark' and \"$?\" to set the
-`point', but only use one of each."
-  (let ((start (point)))
-    (insert (s-format template 'aget    ; FIXME: remove s
-                      `(("title" . ,(file-name-base (buffer-name)))
-                        ("time" . ,(format-time-string fountain-time-format))
-                        ("fullname" . ,user-full-name)
-                        ("nick" . ,(capitalize user-login-name))
-                        ("email" . ,user-mail-address))))
-    (let ((end (point-marker)))
-      (goto-char start)
-      (when (search-forward "$@" end t)
-        (replace-match "")
-        (push-mark (point) t t))
-      (goto-char start)
-      (if (search-forward "$?" end t)
-          (replace-match "")
-        (goto-char end))
-      (set-marker end nil))))
 
 (defun fountain-get-character (&optional n limit)
   "Return Nth next character (or Nth previous if N is negative).
@@ -2855,12 +2828,13 @@ halt at end of dialog."
 
 (defun fountain-insert-note (&optional arg)
   "Insert a note based on `fountain-note-template' underneath current element.
-If prefixed with ARG (\\[universal-argument]), only insert note
-delimiters (\"[[\" \"]]\")."
+If region is active and it is appropriate to act on, only
+surround region with note delimiters (`[[ ]]'). If prefixed with
+ARG (\\[universal-argument]), only insert note delimiters."
   (interactive "P")
   (let ((comment-start "[[")
         (comment-end "]]"))
-    (if arg
+    (if (or arg (use-region-p))
         (comment-dwim nil)
       (unless (fountain-blank-p)
         (re-search-forward "^[\s\t]*$" nil 'move))
@@ -2870,7 +2844,22 @@ delimiters (\"[[\" \"]]\")."
         (save-excursion
           (insert-char ?\n)))
       (comment-indent)
-      (fountain-insert-template fountain-note-template))))
+      (insert
+       (with-temp-buffer
+         (insert fountain-note-template)
+         (goto-char (point-min))
+         (while (re-search-forward fountain-template-key-regexp nil t)
+           (let ((key (match-string 1)))
+             (replace-match
+              (cdr
+               (assoc-string key (list (cons 'title (file-name-base (buffer-name)))
+                                       (cons 'time (format-time-string fountain-time-format))
+                                       (cons 'fullname user-full-name)
+                                       (cons 'nick (capitalize user-login-name))
+                                       (cons 'email user-mail-address))))
+              t t))
+           (goto-char (point-min)))
+         (buffer-string))))))
 
 (defun fountain-continued-dialog-refresh (&optional arg)
   "Add or remove continued dialog on characters speaking in succession.
