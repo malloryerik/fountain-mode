@@ -4,7 +4,7 @@
 
 ;; Author: Paul Rankin <hello@paulwrankin.com>
 ;; Keywords: wp
-;; Version: 2.1.2
+;; Version: 2.2.0
 ;; Package-Requires: ((emacs "24.4.0") (s "1.9.0"))
 ;; URL: https://github.com/rnkn/fountain-mode
 
@@ -124,7 +124,7 @@
 ;;; Code:
 
 (defconst fountain-version
-  "2.1.2")
+  "2.2.0")
 
 
 ;;; Requirements
@@ -2656,6 +2656,16 @@ otherwise kill destination buffer."
       (unless complete
         (kill-buffer destbuf)))))
 
+(defun fountain-export-buffer-to-txt ()
+  "Convenience function for exporting buffer to text."
+  (interactive)
+  (ignore))
+
+(defun fountain-export-buffer-to-ps ()
+  "Convenience function for exporting buffer to PostScript."
+  (interactive)
+  (ignore))
+
 (defun fountain-export-buffer-to-html ()
   "Convenience function for exporting buffer to HTML."
   (interactive)
@@ -3324,6 +3334,8 @@ keywords suitable for Font Lock."
     (define-key map (kbd "S-TAB") #'fountain-outline-cycle-global)
     ;; exporting commands
     (define-key map (kbd "C-c C-e C-e") #'fountain-export-default)
+    (define-key map (kbd "C-c C-e p") #'fountain-export-buffer-to-ps)
+    (define-key map (kbd "C-c C-e t") #'fountain-export-buffer-to-txt)
     (define-key map (kbd "C-c C-e h") #'fountain-export-buffer-to-html)
     (define-key map (kbd "C-c C-e l") #'fountain-export-buffer-to-latex)
     (define-key map (kbd "C-c C-e d") #'fountain-export-buffer-to-fdx)
@@ -3390,10 +3402,12 @@ otherwise, if ELT is provided, toggle the presence of ELT in VAR."
     ("Export"
      ["Default" fountain-export-default]
      "---"
+     ["Buffer to PostScript" fountain-export-buffer-to-ps]
      ["Buffer to HTML" fountain-export-buffer-to-html]
      ["Buffer to LaTeX" fountain-export-buffer-to-latex]
      ["Buffer to Final Draft" fountain-export-buffer-to-fdx]
      ["Buffer to Fountain" fountain-export-buffer-to-fountain]
+     ["Buffer to Text" fountain-export-buffer-to-txt]
      "---"
      ["Run shell command" fountain-export-shell-command]
      "---"
